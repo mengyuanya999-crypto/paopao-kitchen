@@ -51,19 +51,31 @@ h1 {
 st.markdown("""
 <style>
 
-/* 🔥 隐藏右下角整个浮动区域 */
-div[data-testid="stToolbar"] {
-    display: none !important;
+st.markdown("""
+<style>
+
+/* 🔥 全局隐藏 */
+header {visibility: hidden;}
+footer {visibility: hidden;}
+#MainMenu {visibility: hidden;}
+
+/* 🔥 隐藏右下角所有工具 */
+div[data-testid="stToolbar"] {display:none;}
+div[data-testid="stDecoration"] {display:none;}
+
+/* 🔥 页面优化 */
+.block-container {
+    max-width: 600px;
+    margin: auto;
+    padding: 1rem;
 }
 
-/* 🔥 隐藏右下角用户按钮 */
-div[data-testid="stDecoration"] {
-    display: none !important;
-}
-
-/* 🔥 隐藏头像按钮 */
-button[kind="secondary"] {
-    display: none !important;
+/* 🔥 按钮 */
+.stButton>button {
+    width: 100%;
+    height: 48px;
+    font-size: 18px;
+    border-radius: 12px;
 }
 
 </style>
