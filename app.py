@@ -51,36 +51,6 @@ h1 {
 st.markdown("""
 <style>
 
-st.markdown("""
-<style>
-
-/* 🔥 全局隐藏 */
-header {visibility: hidden;}
-footer {visibility: hidden;}
-#MainMenu {visibility: hidden;}
-
-/* 🔥 隐藏右下角所有工具 */
-div[data-testid="stToolbar"] {display:none;}
-div[data-testid="stDecoration"] {display:none;}
-
-/* 🔥 页面优化 */
-.block-container {
-    max-width: 600px;
-    margin: auto;
-    padding: 1rem;
-}
-
-/* 🔥 按钮 */
-.stButton>button {
-    width: 100%;
-    height: 48px;
-    font-size: 18px;
-    border-radius: 12px;
-}
-
-</style>
-""", unsafe_allow_html=True)
-
 import json
 import os
 from datetime import datetime
