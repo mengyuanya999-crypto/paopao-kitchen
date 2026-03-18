@@ -48,6 +48,26 @@ h1 {
 }
 </style>
 """, unsafe_allow_html=True)
+st.markdown("""
+<style>
+
+/* 🔥 隐藏右下角整个浮动区域 */
+div[data-testid="stToolbar"] {
+    display: none !important;
+}
+
+/* 🔥 隐藏右下角用户按钮 */
+div[data-testid="stDecoration"] {
+    display: none !important;
+}
+
+/* 🔥 隐藏头像按钮 */
+button[kind="secondary"] {
+    display: none !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
 
 import json
 import os
