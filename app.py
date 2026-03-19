@@ -206,7 +206,7 @@ if page == "🔧 后台管理":
 
     name = st.text_input("菜名", key="dish_name")
     price = st.number_input("价格", min_value=0)
-    category = st.selectbox("分类", ["主食", "荤菜", "素菜", "饮品"])
+    category = st.selectbox("分类", ["主食", "荤菜", "小荤", "素菜", "汤品"])
 
     image_file = st.file_uploader("上传图片", type=["jpg","png"])
 
