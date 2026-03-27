@@ -2,7 +2,6 @@ import streamlit as st
 from supabase import create_client
 from streamlit_cookies_manager import EncryptedCookieManager
 from datetime import datetime
-import os
 
 # ===== 页面配置 =====
 st.set_page_config(page_title="泡泡小灶", page_icon="🍳", layout="centered")
@@ -13,9 +12,8 @@ SUPABASE_KEY = "sb_publishable_dD3ckwu1w_dM8h9sT7mIlw_LaKz0IPl"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ===== Cookie（自动登录）=====
+# ===== Cookie =====
 cookies = EncryptedCookieManager(prefix="paopao", password="abc123")
-
 if not cookies.ready():
     st.stop()
 
@@ -52,19 +50,33 @@ if not st.session_state.user:
     with tab2:
         u = st.text_input("用户名", key="reg_u")
         p = st.text_input("密码", type="password", key="reg_p")
-
         role = st.selectbox("角色", ["主理人", "干饭人"])
-        family = st.text_input("家庭名称（必须一致）")
+        family_name = st.text_input("家庭名称")
 
         if st.button("注册"):
-            if u and p and family:
+            if u and p and family_name:
+
+                # 🔥 查家庭
+                fam = supabase.table("families").select("*").eq("name", family_name).execute()
+
+                if fam.data:
+                    family_id = fam.data[0]["id"]
+                else:
+                    new_fam = supabase.table("families").insert({
+                        "name": family_name
+                    }).execute()
+                    family_id = new_fam.data[0]["id"]
+
+                # 🔥 创建用户
                 supabase.table("users").insert({
                     "username": u,
                     "password": p,
-                    "role": "owner" if role == "主理人" else "member",
-                    "family": family
+                    "role": "host" if role == "主理人" else "member",
+                    "family_id": family_id
                 }).execute()
+
                 st.success("注册成功，请登录")
+
             else:
                 st.warning("请填写完整信息")
 
@@ -78,12 +90,16 @@ user = st.session_state.user
 user_info = supabase.table("users").select("*").eq("username", user).execute().data[0]
 
 role = user_info["role"]
-family = user_info["family"]
+family_id = user_info["family_id"]
+
+# 获取家庭名称
+family_info = supabase.table("families").select("*").eq("id", family_id).execute().data[0]
+family_name = family_info["name"]
 
 # ===== Sidebar =====
 st.sidebar.write(f"👤 {user}")
-st.sidebar.write(f"🏠 家庭：{family}")
-st.sidebar.write(f"🎭 角色：{role}")
+st.sidebar.write(f"🏠 {family_name}")
+st.sidebar.write(f"🎭 {role}")
 
 if st.sidebar.button("退出登录"):
     cookies["user"] = ""
@@ -91,13 +107,13 @@ if st.sidebar.button("退出登录"):
     st.session_state.user = None
     st.rerun()
 
-# ===== 页面选择 =====
-if role == "owner":
+# ===== 页面 =====
+if role == "host":
     page = st.sidebar.selectbox("页面", ["点菜", "购物车", "订单记录", "后台管理"])
 else:
     page = st.sidebar.selectbox("页面", ["点菜", "购物车", "订单记录"])
 
-# ===== 初始化购物车 =====
+# ===== 购物车 =====
 if "cart" not in st.session_state:
     st.session_state.cart = {}
 
@@ -108,7 +124,7 @@ if page == "点菜":
 
     st.title("🍳 今日菜单")
 
-    menu = supabase.table("menu").select("*").eq("family", family).execute().data
+    menu = supabase.table("menu").select("*").eq("family_id", family_id).execute().data
 
     for item in menu:
         col1, col2, col3 = st.columns([1,3,1])
@@ -169,24 +185,26 @@ if page == "购物车":
         if st.session_state.cart:
 
             supabase.table("orders").insert({
+                "family_id": family_id,
+                "user_id": user_info["id"],
                 "user_name": user,
-                "family": family,
                 "items": st.session_state.cart,
                 "total": total,
-                "created_at": datetime.now().isoformat()
+                "meal_time": "默认",
+                "status": "已下单"
             }).execute()
 
             st.success("下单成功 🍚")
             st.session_state.cart = {}
 
 # =========================
-# 📊 订单记录
+# 📊 订单
 # =========================
 if page == "订单记录":
 
     st.title("📊 历史订单")
 
-    orders = supabase.table("orders").select("*").eq("family", family).order("created_at", desc=True).execute().data
+    orders = supabase.table("orders").select("*").eq("family_id", family_id).order("created_at", desc=True).execute().data
 
     for o in orders:
         st.write(f"👤 {o['user_name']} | 🕒 {o['created_at']}")
@@ -196,7 +214,7 @@ if page == "订单记录":
         st.write("---")
 
 # =========================
-# 🔧 后台（主理人）
+# 🔧 后台
 # =========================
 if page == "后台管理":
 
@@ -204,8 +222,8 @@ if page == "后台管理":
 
     name = st.text_input("菜名")
     price = st.number_input("价格", min_value=0)
-    desc = st.text_input("描述（可选）")
-    image = st.text_input("图片URL（可选）")
+    desc = st.text_input("描述")
+    image = st.text_input("图片URL")
 
     if st.button("添加菜品"):
         if name:
@@ -214,13 +232,11 @@ if page == "后台管理":
                 "price": price,
                 "description": desc,
                 "image": image,
-                "family": family
+                "family_id": family_id
             }).execute()
             st.success("添加成功")
 
-    st.subheader("当前菜单")
-
-    menu = supabase.table("menu").select("*").eq("family", family).execute().data
+    menu = supabase.table("menu").select("*").eq("family_id", family_id).execute().data
 
     for item in menu:
         col1, col2 = st.columns([3,1])
@@ -229,6 +245,6 @@ if page == "后台管理":
             st.write(f"{item['name']} ¥{item['price']}")
 
         with col2:
-            if st.button("删除", key=f"del_menu_{item['id']}"):
+            if st.button("删除", key=item["id"]):
                 supabase.table("menu").delete().eq("id", item["id"]).execute()
                 st.rerun()
