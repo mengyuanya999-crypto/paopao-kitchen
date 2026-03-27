@@ -28,7 +28,7 @@ if "user" not in st.session_state:
 # =========================
 if not st.session_state.user:
 
-    st.title("🍳 泡泡小灶（家庭版）")
+    st.title("🍳 泡泡小灶")
 
     tab1, tab2 = st.tabs(["登录", "注册"])
 
