@@ -1,277 +1,188 @@
+from supabase import create_client
 import streamlit as st
-import json
-import os
 from datetime import datetime
-from collections import Counter
 
-st.set_page_config(page_title="泡泡小灶", page_icon="🍳", layout="centered")
+# ===== Supabase =====
+SUPABASE_URL = "https://pujodijixpuaqkfvcmwv.supabase.co"
+SUPABASE_KEY = "sb_publishable_dD3ckwu1w_dM8h9sT7mIlw_LaKz0IPl"
 
-MENU_FILE = "menu.json"
-ORDER_FILE = "orders.json"
-USER_FILE = "users.json"
-IMAGE_FOLDER = "images"
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 ADMIN_USER = "Monica"
-
-if not os.path.exists(IMAGE_FOLDER):
-    os.makedirs(IMAGE_FOLDER)
-
-# ===== 数据读写 =====
-def load_data(file, default):
-    if os.path.exists(file):
-        with open(file, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return default
-
-def save_data(file, data):
-    with open(file, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-menu = load_data(MENU_FILE, [])
-orders = load_data(ORDER_FILE, [])
-users = load_data(USER_FILE, [])
-
-# ===== 自动创建管理员 =====
-if not any(u["username"] == ADMIN_USER for u in users):
-    users.append({
-        "username": ADMIN_USER,
-        "password": "Yz991022$",
-        "email": "admin@test.com"
-    })
-    save_data(USER_FILE, users)
 
 # ===== 登录状态 =====
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# =========================
-# 🔐 登录 / 注册 / 找回密码
-# =========================
+# ================= 登录 =================
 if st.session_state.user is None:
+    st.title("🍳 家庭点餐")
 
-    st.title("🍳 泡泡小灶")
-    st.subheader("欢迎回来")
+    u = st.text_input("用户名")
+    p = st.text_input("密码", type="password")
 
-    tab1, tab2, tab3 = st.tabs(["登录", "注册", "找回密码"])
-
-    # ===== 登录 =====
-    with tab1:
-        login_user = st.text_input("用户名", key="login_user")
-        login_pass = st.text_input("密码", type="password", key="login_pass")
-
-        if st.button("登录"):
-            for u in users:
-                if u["username"] == login_user and u["password"] == login_pass:
-                    st.session_state.user = login_user
-                    st.success("登录成功 🍚")
-                    st.rerun()
-            st.error("用户名或密码错误")
-
-    # ===== 注册 =====
-    with tab2:
-        reg_user = st.text_input("用户名", key="reg_user")
-        reg_pass = st.text_input("密码", type="password", key="reg_pass")
-        reg_email = st.text_input("邮箱", key="reg_email")
-
-        if st.button("注册"):
-            if any(u["username"] == reg_user for u in users):
-                st.warning("用户名已存在")
-            elif reg_user and reg_pass and reg_email:
-                users.append({
-                    "username": reg_user,
-                    "password": reg_pass,
-                    "email": reg_email
-                })
-                save_data(USER_FILE, users)
-                st.success("注册成功，请登录")
-
-    # ===== 找回密码 =====
-    with tab3:
-        fp_user = st.text_input("用户名", key="fp_user")
-        fp_email = st.text_input("注册邮箱", key="fp_email")
-        new_pass = st.text_input("新密码", type="password", key="fp_new_pass")
-
-        if st.button("重置密码"):
-            for u in users:
-                if u["username"] == fp_user and u.get("email") == fp_email:
-                    u["password"] = new_pass
-                    save_data(USER_FILE, users)
-                    st.success("密码已重置！")
-                    break
-            else:
-                st.error("用户名或邮箱不匹配")
+    if st.button("登录"):
+        res = supabase.table("users").select("*").eq("username", u).execute()
+        if res.data and res.data[0]["password"] == p:
+            st.session_state.user = u
+            st.rerun()
+        else:
+            st.error("登录失败")
 
     st.stop()
 
-# =========================
-# 登录后
-# =========================
+# ================= 登录后 =================
 is_admin = st.session_state.user == ADMIN_USER
 
-# 显示用户
-if is_admin:
-    st.sidebar.markdown(f"👤 **{st.session_state.user}（主理人）**")
-else:
-    st.sidebar.markdown(f"👤 {st.session_state.user}")
+st.sidebar.write(f"👤 {st.session_state.user}")
 
-# 修改密码
-st.sidebar.markdown("---")
-st.sidebar.subheader("🔑 修改密码")
-
-old_pass = st.sidebar.text_input("旧密码", type="password", key="old_pass")
-new_pass = st.sidebar.text_input("新密码", type="password", key="new_pass")
-
-if st.sidebar.button("修改密码"):
-    for u in users:
-        if u["username"] == st.session_state.user:
-            if u["password"] == old_pass:
-                u["password"] = new_pass
-                save_data(USER_FILE, users)
-                st.sidebar.success("修改成功")
-            else:
-                st.sidebar.error("旧密码错误")
-
-# 退出
-if st.sidebar.button("退出登录"):
+if st.sidebar.button("退出"):
     st.session_state.user = None
     st.rerun()
 
-# 权限控制
 if is_admin:
-    page = st.sidebar.selectbox("选择页面", ["🍜 点菜", "🔧 后台管理", "📊 数据分析"])
+    page = st.sidebar.selectbox("页面", ["点菜", "今日菜单", "后台"])
 else:
-    page = "🍜 点菜"
+    page = st.sidebar.selectbox("页面", ["点菜"])
 
 # ===== 购物车 =====
 if "cart" not in st.session_state:
-    st.session_state.cart = []
+    st.session_state.cart = {}
 
-# =========================
-# 🍜 点菜
-# =========================
-if page == "🍜 点菜":
-    st.title("🍳 泡泡小灶")
-    st.caption("今天吃什么，一起点一下")
+# ================= 点菜 =================
+if page == "点菜":
 
-    categories = list(set([item["category"] for item in menu])) if menu else []
+    st.title("🍳 今天想吃什么")
 
-    for cat in categories:
-        st.header(f"🍽 {cat}")
+    menu = supabase.table("menu").select("*").execute().data
 
-        for item in menu:
-            if item["category"] == cat:
-                col1, col2, col3 = st.columns([1,3,1])
+    meal_time = st.selectbox("选择用餐时间", ["早餐", "午餐", "晚餐"])
+    note = st.text_input("备注（可选）")
 
-                with col1:
-                    img_path = os.path.join(IMAGE_FOLDER, item.get("image",""))
-                    if os.path.exists(img_path):
-                        st.image(img_path, use_container_width=True)
+    for item in menu:
+        col1, col2 = st.columns([4,1])
 
-                with col2:
-                    st.write(f"**{item['name']}**")
-                    st.write(f"¥{item['price']}")
+        with col1:
+            st.write(f"{item['name']} ¥{item['price']}")
+            if item.get("description"):
+                st.caption(item["description"])
 
-                with col3:
-                    if st.button("点", key=item["name"], use_container_width=True):
-                        st.session_state.cart.append(item)
+        with col2:
+            if st.button("➕", key=item["id"]):
+                if item["id"] in st.session_state.cart:
+                    st.session_state.cart[item["id"]]["qty"] += 1
+                else:
+                    st.session_state.cart[item["id"]] = {
+                        "name": item["name"],
+                        "price": item["price"],
+                        "qty": 1
+                    }
 
-    # 购物车
-    st.header("🛒 购物车")
+    # ===== 购物车 =====
+    st.subheader("🛒 我的选择")
+
     total = 0
 
-    for item in st.session_state.cart:
-        st.write(f"{item['name']} ¥{item['price']}")
-        total += item["price"]
+    for k, v in list(st.session_state.cart.items()):
+        col1, col2, col3 = st.columns([3,1,1])
+
+        with col1:
+            st.write(f"{v['name']} x{v['qty']}")
+
+        with col2:
+            if st.button("➕", key=f"add{k}"):
+                v["qty"] += 1
+
+        with col3:
+            if st.button("➖", key=f"sub{k}"):
+                v["qty"] -= 1
+                if v["qty"] <= 0:
+                    del st.session_state.cart[k]
+
+        total += v["price"] * v["qty"]
 
     st.write(f"### 总价：¥{total}")
 
-    if st.button("✅ 下单"):
+    if st.button("提交点单"):
         if st.session_state.cart:
-            order = {
-                "user": st.session_state.user,
-                "items": st.session_state.cart,
+
+            supabase.table("orders").insert({
+                "user_name": st.session_state.user,
+                "items": list(st.session_state.cart.values()),
                 "total": total,
-                "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }
-            orders.append(order)
-            save_data(ORDER_FILE, orders)
+                "meal_time": meal_time,
+                "note": note
+            }).execute()
 
-            st.success("开饭啦 🍚")
-            st.session_state.cart = []
+            st.success("已提交 👌")
+            st.session_state.cart = {}
 
-# =========================
-# 🔧 后台
-# =========================
-if page == "🔧 后台管理":
-    st.title("🔧 后台管理")
+# ================= 今日菜单（核心） =================
+if page == "今日菜单":
 
-    name = st.text_input("菜名", key="dish_name")
-    price = st.number_input("价格", min_value=0)
-    category = st.selectbox("分类", ["主食", "荤菜", "小荤", "素菜", "汤品"])
+    st.title("🍳 今日做饭清单")
 
-    image_file = st.file_uploader("上传图片", type=["jpg","png"])
+    orders = supabase.table("orders").select("*").execute().data
 
-    if st.button("添加菜品"):
-        if name:
-            image_name = ""
+    today = datetime.now().strftime("%Y-%m-%d")
 
-            if image_file:
-                image_name = image_file.name
-                save_path = os.path.join(IMAGE_FOLDER, image_name)
+    today_orders = [
+        o for o in orders
+        if o["created_at"].startswith(today)
+    ]
 
-                with open(save_path, "wb") as f:
-                    f.write(image_file.getbuffer())
+    if not today_orders:
+        st.info("今天还没人点餐 😴")
+    else:
 
-            menu.append({
-                "name": name,
-                "price": price,
-                "category": category,
-                "image": image_name
-            })
+        meals = {"早餐": [], "午餐": [], "晚餐": []}
 
-            save_data(MENU_FILE, menu)
-            st.success("添加成功！")
+        for o in today_orders:
+            meals[o["meal_time"]].append(o)
 
-    st.subheader("📋 当前菜单")
+        for meal, orders_list in meals.items():
 
-    for i, item in enumerate(menu):
-        col1, col2 = st.columns([3,1])
+            if orders_list:
+                st.header(f"🍽 {meal}")
 
-        with col1:
-            st.write(f"{item['category']} - {item['name']} ¥{item['price']}")
+                summary = {}
 
-        with col2:
-            if st.button("删除", key=f"del{i}"):
-                menu.pop(i)
-                save_data(MENU_FILE, menu)
-                st.rerun()
+                for o in orders_list:
+                    for item in o["items"]:
+                        name = item["name"]
+                        qty = item["qty"]
 
-# =========================
-# 📊 数据分析
-# =========================
-if page == "📊 数据分析":
-    st.title("📊 点餐分析")
+                        summary[name] = summary.get(name, 0) + qty
 
-    total_orders = len(orders)
-    total_revenue = sum(o["total"] for o in orders)
+                st.subheader("👉 要做这些菜：")
+                for k, v in summary.items():
+                    st.write(f"{k} × {v}")
 
-    st.write(f"📦 总订单数：{total_orders}")
-    st.write(f"💰 总收入：¥{total_revenue}")
+                st.subheader("👨‍👩‍👧‍👦 点餐详情：")
+                for o in orders_list:
+                    st.write(f"👤 {o['user_name']}")
 
-    st.subheader("📊 订单记录")
+                    for item in o["items"]:
+                        st.write(f"- {item['name']} x{item['qty']}")
 
-    for order in orders[::-1]:
-        st.write(f"👤 {order.get('user','未知')} | 🕒 {order['time']}")
-        for item in order["items"]:
-            st.write(f"- {item['name']}")
-        st.write("---")
+                    if o.get("note"):
+                        st.caption(f"备注：{o['note']}")
 
-    all_items = []
-    for order in orders:
-        for item in order["items"]:
-            all_items.append(item["name"])
+                    st.write("---")
 
-    if all_items:
-        counter = Counter(all_items)
-        st.subheader("🏆 热门菜品")
-        for name, count in counter.most_common(10):
-            st.write(f"{name} - {count}次")
+# ================= 后台 =================
+if page == "后台":
+
+    st.title("🔧 菜单管理")
+
+    name = st.text_input("菜名")
+    price = st.number_input("价格")
+    desc = st.text_area("描述（可选）")
+
+    if st.button("添加"):
+        supabase.table("menu").insert({
+            "name": name,
+            "price": price,
+            "description": desc
+        }).execute()
+        st.success("添加成功")
