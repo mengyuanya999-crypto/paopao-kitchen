@@ -143,47 +143,44 @@ if page == "🍜 点菜":
 
     categories = list(set([item["category"] for item in menu])) if menu else []
 
-    for cat in categories:
-        st.header(f"🍽 {cat}")
+    # 假设 menu 的数据已经从数据库获取
 
-        for item in menu:
-            if item["category"] == cat:
-                col1, col2, col3 = st.columns([1, 3, 1])
+# 菜品列表
+for item in menu:
+    col1, col2, col3 = st.columns([1, 3, 1])
 
-                with col1:
-                    img_path = os.path.join(IMAGE_FOLDER, item.get("image", ""))
-                    if os.path.exists(img_path):
-                        st.image(img_path, use_container_width=True)
+    with col1:
+        # 如果菜品有图片，才加载图片
+        img_path = os.path.join(IMAGE_FOLDER, item.get("image", ""))
+        if img_path and os.path.exists(img_path):
+            st.image(img_path, use_container_width=True)
+        else:
+            st.text("没有图片")  # 如果没有图片，可以显示一个默认文本或者一个默认的占位图片
 
-                with col2:
-                    st.write(f"**{item['name']}**")
-                    st.write(f"¥{item['price']}")
+    with col2:
+        # 显示菜品名称和价格
+        st.write(f"**{item['name']}**")
+        st.write(f"¥{item['price']}")
 
-                with col3:
-                    if st.button(f"点", key=f"button_{item['id']}_{item['name']}", use_container_width=True):
-                        st.session_state.cart.append(item)
+    with col3:
+        # 点单按钮
+        if st.button(f"点 {item['name']}", key=item["id"]):
+            # 点菜逻辑，这里你可以处理点菜的数量和购物车的更新
+            st.session_state.cart.append(item)
 
-    # 购物车
-    st.header("🛒 购物车")
+# 购物车部分
+if st.session_state.cart:
+    st.write("🛒 购物车")
     total = 0
     for item in st.session_state.cart:
         st.write(f"{item['name']} ¥{item['price']}")
-        total += item["price"]
+        total += item['price']
+    st.write(f"总价：¥{total}")
 
-    st.write(f"### 总价：¥{total}")
-
-    if st.button("✅ 下单"):
-        if st.session_state.cart:
-            order = {
-                "user": st.session_state.user,
-                "items": st.session_state.cart,
-                "total": total,
-                "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }
-            orders.append(order)
-            save_data(ORDER_FILE, orders)
-            st.success("开饭啦 🍚")
-            st.session_state.cart = []
+    if st.button("确认下单"):
+        # 提交订单逻辑
+        st.success("订单已提交")
+        st.session_state.cart = []  # 清空购物车
 
 # =========================
 # 🔧 菜单管理
