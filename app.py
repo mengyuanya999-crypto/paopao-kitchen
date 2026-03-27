@@ -128,13 +128,43 @@ if page == "菜单":
 
     categories = ["大荤", "小荤", "纯素", "汤品", "甜品", "主食"]
 
+    # ==============================
+    # 实时显示购物车内容
+    # ==============================
+    st.sidebar.subheader("🛒 当前购物车")
+    total = 0
+
+    for item_id, item in st.session_state.cart.items():
+        col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
+        
+        with col1:
+            st.write(f"{item['name']} x {item['qty']}")
+
+        with col2:
+            st.write(f"¥{item['price']}")
+
+        with col3:
+            qty = st.number_input("数量", min_value=1, value=item["qty"], key=f"qty{item_id}")
+            st.session_state.cart[item_id]["qty"] = qty
+
+        with col4:
+            if st.button("删除", key=f"del{item_id}"):
+                del st.session_state.cart[item_id]
+                st.experimental_rerun()
+
+        total += item["price"] * item["qty"]
+
+    st.sidebar.write(f"### 总价：¥{total}")
+
+    # ==============================
+    # 菜单分类展示
+    # ==============================
     for cat in categories:
         st.subheader(cat)
 
         for item in menu:
             if item.get("category") == cat:
-
-                col1, col2, col3 = st.columns([1,3,1])
+                col1, col2, col3 = st.columns([1, 3, 1])
 
                 with col1:
                     if item.get("image"):
@@ -142,6 +172,8 @@ if page == "菜单":
 
                 with col2:
                     st.write(f"**{item['name']}** ¥{item['price']}")
+                    if item.get("description"):
+                        st.caption(item["description"])
 
                 with col3:
                     if st.button("➕", key=item["id"]):
@@ -154,14 +186,13 @@ if page == "菜单":
                                 "qty": 1
                             }
 
-                # 🔥 主理人编辑
+                # 🔥 主理人编辑菜品
                 if role == "host":
-                    with st.expander("编辑菜品"):
-
+                    with st.expander(f"编辑 {item['name']}"):
                         new_name = st.text_input("名称", value=item["name"], key=f"name{item['id']}")
                         new_price = st.number_input("价格", value=item["price"], key=f"price{item['id']}")
                         new_cat = st.selectbox("分类", categories, index=categories.index(item["category"]), key=f"cat{item['id']}")
-                        new_img = st.text_input("图片URL", value=item.get("image",""), key=f"img{item['id']}")
+                        new_img = st.text_input("图片URL", value=item.get("image", ""), key=f"img{item['id']}")
 
                         if st.button("保存", key=f"save{item['id']}"):
                             supabase.table("menu").update({
@@ -177,7 +208,7 @@ if page == "菜单":
                             supabase.table("menu").delete().eq("id", item["id"]).execute()
                             st.rerun()
 
-    # 添加菜
+    # 添加菜品（主理人）
     if role == "host":
         st.markdown("---")
         st.subheader("➕ 添加菜品")
