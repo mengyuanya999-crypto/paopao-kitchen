@@ -163,30 +163,22 @@ if page == "菜单":
         st.subheader(cat)
 
         for item in menu:
-            if item.get("category") == cat:
-                col1, col2, col3 = st.columns([1, 3, 1])
+    if item["category"] == cat:
+        col1, col2, col3 = st.columns([1, 3, 1])
 
-                with col1:
-                    if item.get("image"):
-                        st.image(item["image"], width=80)
+        with col1:
+            img_path = os.path.join(IMAGE_FOLDER, item.get("image", ""))
+            if os.path.exists(img_path):
+                st.image(img_path, use_container_width=True)
 
-                with col2:
-                    st.write(f"**{item['name']}** ¥{item['price']}")
-                    if item.get("description"):
-                        st.caption(item["description"])
+        with col2:
+            st.write(f"**{item['name']}**")
+            st.write(f"¥{item['price']}")
 
-                with col3:
-                    if st.button("➕", key=item["id"]):
-                        if item["id"] in st.session_state.cart:
-                            st.session_state.cart[item["id"]]["qty"] += 1
-                        else:
-                            st.session_state.cart[item["id"]] = {
-                                "name": item["name"],
-                                "price": item["price"],
-                                "qty": 1
-                            }
-
-                # 🔥 主理人编辑菜品
+        with col3:
+            if st.button(f"点", key=f"button_{item['id']}_{item['name']}", use_container_width=True):
+                st.session_state.cart.append(item)
+      # 🔥 主理人编辑菜品
                 if role == "host":
                     with st.expander(f"编辑 {item['name']}"):
                         new_name = st.text_input("名称", value=item["name"], key=f"name{item['id']}")
