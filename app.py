@@ -244,5 +244,6 @@ if page == "订单记录":
         st.write(f"{o['user_name']} - {o['created_at']}")
         for i in o["items"].values():
             st.write(f"- {i['name']} x{i['qty']}")
+
         st.write(f"¥{o['total']}")
         st.write("---")
